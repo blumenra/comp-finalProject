@@ -1,6 +1,6 @@
 (define remove-applic-lambda-nil
     (lambda (parseExp)
-        (cond ((or (null? parseExp) (not (pair? parseExp))) parseExp)
+        (cond ((or (null? parseExp) (not (list? parseExp))) parseExp)
             ((and (equal? (car parseExp) 'applic)
                 (equal? (caadr parseExp) 'lambda-simple)
                 (equal? (cadadr parseExp) '())
@@ -113,7 +113,7 @@
 (define box-set
     (lambda (parseExp)
         (cond 
-            ((or (null? parseExp) (not (pair? parseExp))) parseExp)
+            ((or (null? parseExp) (not (list? parseExp))) parseExp)
             ((equal? (car parseExp) 'lambda-simple)
                 `(lambda-simple ,(cadr parseExp) ,@(box-set (lambda-simple-boxer (reverse (cadr parseExp)) (cddr parseExp)))))
             ((equal? (car parseExp) 'lambda-opt)
@@ -126,7 +126,7 @@
     (lambda (exp)
         (or
             (null? exp)
-            (not (pair? exp))
+            (not (list? exp))
         )))
 
 (define lambda?
