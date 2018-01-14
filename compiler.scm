@@ -16,6 +16,12 @@
 (define T_PAIR 10)
 (define T_VECTOR 11)
 
+
+
+(define consts-table '())
+(define global-var-table '())
+
+
 (define pipeline
     (lambda (s)
         ((star <sexpr>)
@@ -48,16 +54,15 @@
 				
 (define address-count 7)
 
-;; (define code-gen 
-;;     (lambda ()
-;;         ))
-
-(define const-token?
-    (lambda (exp)
-        (and
-            (list? exp)
-            (not (null? exp))
-            (equal? (car exp) 'const))))
+(define make-token-pred
+    (lambda (tag)
+        (lambda (exp)
+            (and
+                (list? exp)
+                (not (null? exp))
+                (equal? (car exp) tag)))))
+                
+(define const-token? (make-token-pred 'const))
 
 ;; input: const
 ;; output: list of all the components of const
@@ -79,7 +84,12 @@
         (cond 
             ((or (null? lst-sexp) (not (pair? lst-sexp))) '())
             ((const-token? lst-sexp)
-                (if (vector? (cadr lst-sexp)) (append (vector->list (cadr lst-sexp)) (cdr lst-sexp)) (cdr lst-sexp))) 
+                (cond 
+                    ((vector? (cadr lst-sexp)) 
+                        (append (vector->list (cadr lst-sexp)) (cdr lst-sexp)))
+                    ((symbol? (cadr lst-sexp))
+                        (cons (symbol->string (cadr lst-sexp)) (cdr lst-sexp)))
+                    (else (cdr lst-sexp))))
             (else (append (extract-consts (car lst-sexp)) 
                         (extract-consts (cdr lst-sexp)))))))
         
@@ -152,7 +162,7 @@
 	(lambda (const rest table)
              (let ((addr address-count))
 		(set! address-count (+ address-count 2))
-		(add-to-consts-table rest (append table (list `(,addr ,const (,T_SYMBOL ,const))))))))
+		(add-to-consts-table rest (append table (list `(,addr ,const (,T_SYMBOL ,(find-address (symbol->string const) table)))))))))
 	
 (define add-to-consts-table
    (lambda (consts-list table)
@@ -164,8 +174,8 @@
                             (null? const)
                             (equal? const #f)
                             (equal? const #t))
-                            (add-to-consts-table rest))
-                        ((is-member const table) (add-to-consts-table rest))
+                            (add-to-consts-table rest table))
+                        ((is-member const table) (add-to-consts-table rest table))
                         ((integer? const) (make-integer-const const rest table)) 
                         ((rational? const) (make-rational-const const rest table))
                         ((pair? const) (make-pair-const const rest table))
@@ -176,18 +186,141 @@
                         ((symbol? const) (make-symbol-const const rest table))							
                         (else 'error))))))
 
+                        
+(define fvar-token? (make-token-pred 'fvar))
+            
+;; (define make-append-to-table
+;;     (lambda (table)
+;;         (lambda (x1)
+;;             (display `(x1: ,x1))
+;;             (set! table (cons table x1)))))
+;; 
+;; 
+;; (define append-to-global (make-append-to-table global-var-table))
+            
+            
+;; (define add-to-global-var-table
+;;     (lambda (lst-sexp)
+;;         (cond 
+;;             ((or (null? lst-sexp) (not (pair? lst-sexp))) '())
+;;             ((fvar-token? lst-sexp) (append-to-global (cdr lst-sexp)))
+;;             (else (append-to-global (append (add-to-global-var-table (car lst-sexp)) 
+;;                                             (add-to-global-var-table (cdr lst-sexp))))))))
+    
+(define extract-fvars
+    (lambda (lst-sexp)
+        (cond 
+            ((or (null? lst-sexp) (not (pair? lst-sexp))) '())
+            ((fvar-token? lst-sexp) (cdr lst-sexp))
+            (else (append (extract-fvars (car lst-sexp)) 
+                                            (extract-fvars (cdr lst-sexp)))))))
+                                            
+(define add-to-global-var-table
+    (lambda (fvars-list table)
+        (if (null? fvars-list) table
+            (let ((fvar (car fvars-list))
+                    (rest (cdr fvars-list))
+                    (addr address-count))
+                    (cond 
+                        ((is-member fvar table) (add-to-global-var-table rest table))
+                        (else (set! address-count (+ 1 address-count))
+                            (add-to-global-var-table rest (append table (list `(,addr ,fvar (-1)))))))))
+    ))
+    
 (define compile-scheme-file 
     (lambda (src-file trg-file)
-        (set! consts-table '())
-        
         (let* ((lst-sexp (pipeline (file->list src-file))) 
                 (consts (remove-dups (fold-left append '() (map help (extract-consts lst-sexp)))))
                 (const-table (add-to-consts-table consts basic-table)))
-               ; (display (extract-consts lst-sexp))
-                ;(display lst-sexp)
-		;		(newline)
-				(display consts)
-				(newline)
-				(display const-table))
-                ;(find-consts lst-sexp))
-        ))
+                (set! consts-table const-table)
+                (set!  global-var-table (add-to-global-var-table (remove-dups (extract-fvars lst-sexp)) '()))
+                
+                ;(display `(lst-sexp: ,lst-sexp))
+                ;(map code-gen lst-sexp)
+;;                 (newline)
+;;                 (display `(const-table: ,const-table))
+;;                 (newline)
+;;                 (display `(global-table: ,global-var-table))
+        )))
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+
+(define make-lable-count
+    (lambda (prefix)
+      (lambda ()
+        (let ((n 0))
+            (lambda ()
+                (set! n (+ n 1))
+                (string-append prefix (number->string n)))))))
+                    
+(define make-gen-if3-else-lable (make-lable-count "L_if3_else"))
+(define gen-if3-else-lable (make-gen-if3-else-lable))
+(define make-gen-if3-done-lable (make-lable-count "L_if3_done"))
+(define gen-if3-done-lable (make-gen-if3-done-lable))
+
+(define make-gen-or-done-lable (make-lable-count "L_or_done"))
+(define gen-or-done-lable (make-gen-or-done-lable))       
+        
+        
+(define code-gen-if-exp 
+    (lambda (exp)
+        (let
+            ((test (cadr exp))
+            (dit (caddr exp))
+            (dif (cadddr exp))
+            (false-address (find-address #f consts-table))
+            (L_else (gen-if3-else-lable))
+            (L_done (gen-if3-done-lable)))
+            
+            (string-append 
+                (code-gen test) 
+                "cmp rax, " (number->string (+ 1 false-address)) ";\n"
+                "je " L_else ";\n"
+                (code-gen dit)
+                "jmp " L_done ";\n"
+                L_else ":\n"
+                (code-gen dif)
+                L_done ":\n"))))
+                
+                
+        
+        
+        
+        
+(define code-gen 
+    (lambda (exp)
+        (cond 
+            ((or (null? exp) (not (pair? exp))) "")
+            (else
+                (let ((tag (car exp)))
+                    (cond 
+                        ((equal? tag 'if3) (code-gen-if-exp exp))))
+        
+       ))))
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
+       
