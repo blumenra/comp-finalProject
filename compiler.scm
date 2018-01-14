@@ -41,12 +41,12 @@
 							(cons ch (run)))))))
 			(run)))))
         
-(define basic-table `((1 ,(void) (,T_void)) 
-						(2 () (,T_nil)) 
-						(3 #f (,T_bool 0))
-						(5 #t (,T_bool 1))))
+(define basic-table `((1 ,(void) (,T_VOID)) 
+                    (2 () (,T_NIL)) 
+                    (3 #t (,T_BOOL 0))
+                    (5 #f (,T_BOOL 1))))
 				
-(define address-count 5)
+(define address-count 7)
 
 ;; (define code-gen 
 ;;     (lambda ()
@@ -58,7 +58,11 @@
             (list? exp)
             (not (null? exp))
             (equal? (car exp) 'const))))
-        
+
+;; input: const
+;; output: list of all the components of const
+;; examples: 5  ==>  '(5)
+;;           '(1 2 3)  ==>  '(1 2 3 (3) (2 3) (1 2 3))
 (define help
     (lambda (exp)
         (cond 
@@ -74,7 +78,8 @@
     (lambda (lst-sexp)
         (cond 
             ((or (null? lst-sexp) (not (pair? lst-sexp))) '())
-            ((const-token? lst-sexp) (cdr lst-sexp)) 
+            ((const-token? lst-sexp)
+                (if (vector? (cadr lst-sexp)) (append (vector->list (cadr lst-sexp)) (cdr lst-sexp)) (cdr lst-sexp))) 
             (else (append (extract-consts (car lst-sexp)) 
                         (extract-consts (cdr lst-sexp)))))))
         
@@ -97,36 +102,41 @@
 			
 (define make-integer-const
 	(lambda (const rest table)
+            (let ((addr address-count))
 		(set! address-count (+ address-count 2))
-		(add-to-consts-table rest (append table (list `(,address-count ,const (,T_INTEGER ,const)))))))
+		(add-to-consts-table rest (append table (list `(,addr ,const (,T_INTEGER ,const))))))))
 
 (define make-rational-const
 	(lambda (const rest table)
+             (let ((addr address-count))
 		(set! address-count (+ address-count 3))
-		(add-to-consts-table rest (append table (list `(,address-count ,const (,T_FRACTION ,(numerator const) ,(denominator const))))))))
+		(add-to-consts-table rest (append table (list `(,addr ,const (,T_FRACTION ,(numerator const) ,(denominator const)))))))))
 		
 (define make-pair-const
 	(lambda (const rest table)
+             (let ((addr address-count))
 		(set! address-count (+ address-count 3))
 		(add-to-consts-table 
 		rest 
-		(append table (list `(,address-count ,const (,T_PAIR ,(find-address (car const) table) ,(find-address (cdr const) table))))))))
+		(append table (list `(,addr ,const (,T_PAIR ,(find-address (car const) table) ,(find-address (cdr const) table)))))))))
 		
 (define make-vector-const
 	(lambda (const rest table)
+            (let ((addr address-count))
 		(set! address-count (+ address-count (+ 2 (vector-length const))))
 		(add-to-consts-table 
 		rest 
-		(append table (list `(,address-count ,const (,T_VECTOR ,(vector-length const) 
-                                                            ,@(map (lambda (elm) (find-address elm table)) (vector->list const)))))))))
+		(append table (list `(,addr ,const (,T_VECTOR ,(vector-length const) 
+                                                            ,@(map (lambda (elm) (find-address elm table)) (vector->list const))))))))))
 													
 (define make-string-const
 	(lambda (const rest table)
+             (let ((addr address-count))
 		(set! address-count (+ address-count (+ 2 (string-length const))))
 		(add-to-consts-table 
 		rest 
-		(append table (list `(,address-count ,const (,T_STRING ,(string-length const) 
-							,@(map (lambda (c) (char->integer c)) (string->list const)))))))))	
+		(append table (list `(,addr ,const (,T_STRING ,(string-length const) 
+							,@(map (lambda (c) (char->integer c)) (string->list const))))))))))	
 
 ;(define make-closure-const
 ;	(lambda (const rest table)
@@ -134,13 +144,15 @@
 
 (define make-char-const
 	(lambda (const rest table)
+             (let ((addr address-count))
 		(set! address-count (+ address-count 2))
-		(add-to-consts-table rest (append table (list `(,address-count ,const (,T_CHAR ,(char->integer const))))))))
+		(add-to-consts-table rest (append table (list `(,addr ,const (,T_CHAR ,(char->integer const)))))))))
 		
 (define make-symbol-const
 	(lambda (const rest table)
+             (let ((addr address-count))
 		(set! address-count (+ address-count 2))
-		(add-to-consts-table rest (append table (list `(,address-count ,const (,T_SYMBOL ,const)))))))
+		(add-to-consts-table rest (append table (list `(,addr ,const (,T_SYMBOL ,const))))))))
 	
 (define add-to-consts-table
    (lambda (consts-list table)
@@ -169,12 +181,13 @@
         (set! consts-table '())
         
         (let* ((lst-sexp (pipeline (file->list src-file))) 
-                (consts (remove-dups (fold-left append '() (map help (extract-consts lst-sexp))))))
-                ;(const-table (add-to-consts-table consts basic-table)))
-                (display lst-sexp)
-				(newline)
+                (consts (remove-dups (fold-left append '() (map help (extract-consts lst-sexp)))))
+                (const-table (add-to-consts-table consts basic-table)))
+               ; (display (extract-consts lst-sexp))
+                ;(display lst-sexp)
+		;		(newline)
 				(display consts)
 				(newline)
-				;(display const-table))
+				(display const-table))
                 ;(find-consts lst-sexp))
-        )))
+        ))

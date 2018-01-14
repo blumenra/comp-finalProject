@@ -1,4 +1,3 @@
 
-(define x '#(1 2 3))
-(+ x 1)
-'(5 6)
+(define x "abc")
+
