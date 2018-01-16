@@ -1,0 +1,12 @@
+mov rax, [8];
+cmp rax, [6];
+je L_if3_else1;
+mov rax, [10];
+jmp L_if3_done1;
+L_if3_else1:
+mov rax, [12];
+L_if3_done1:
+cmp rax, [6];
+jne L_or_done1;
+mov rax, [14];
+L_or_done1:

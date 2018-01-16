@@ -72,7 +72,10 @@
     (lambda (exp)
         (cond 
         ((null? exp) '())
-        ((not (pair? exp)) `(,exp))
+        ((not (pair? exp))
+            (if (symbol? exp) 
+                (cons (symbol->string exp) `(,exp)) 
+                `(,exp)))
         (else (append (help (car exp)) (help (cdr exp)) `(,exp))))))
         
 ;; input: list of sexprs
@@ -148,10 +151,6 @@
 		(append table (list `(,addr ,const (,T_STRING ,(string-length const) 
 							,@(map (lambda (c) (char->integer c)) (string->list const))))))))))	
 
-;(define make-closure-const
-;	(lambda (const rest table)
-;	))
-
 (define make-char-const
 	(lambda (const rest table)
              (let ((addr address-count))
@@ -181,7 +180,6 @@
                         ((pair? const) (make-pair-const const rest table))
                         ((vector? const) (make-vector-const const rest table))
                         ((string? const) (make-string-const const rest table))									
-                        ;;;;((closure)
                         ((char? const) (make-char-const const rest table)) 
                         ((symbol? const) (make-symbol-const const rest table))							
                         (else 'error))))))
@@ -232,26 +230,20 @@
         (let* ((lst-sexp (pipeline (file->list src-file))) 
                 (consts (remove-dups (fold-left append '() (map help (extract-consts lst-sexp)))))
                 (const-table (add-to-consts-table consts basic-table)))
-                (set! consts-table const-table)
-                (set!  global-var-table (add-to-global-var-table (remove-dups (extract-fvars lst-sexp)) '()))
+                ;(set! consts-table const-table)
+                ;(set!  global-var-table (add-to-global-var-table (remove-dups (extract-fvars lst-sexp)) '()))
                 
-                ;(display `(lst-sexp: ,lst-sexp))
-                ;(map code-gen lst-sexp)
-;;                 (newline)
-;;                 (display `(const-table: ,const-table))
+                (display `(lst-sexp: ,lst-sexp))
+                ;(code-gen (car lst-sexp))
+                 (newline)
+                (display `(constlist: ,consts)) 
+                (newline)
+               (display `(const-table: ,const-table))
 ;;                 (newline)
 ;;                 (display `(global-table: ,global-var-table))
-        )))
 
-        
-        
-        
-        
-        
-        
-        
-        
-        
+                ;(string->file trg-file (append-str-list (map code-gen lst-sexp)))
+        )))
 
 
 (define make-lable-count
@@ -270,8 +262,15 @@
 (define make-gen-or-done-lable (make-lable-count "L_or_done"))
 (define gen-or-done-lable (make-gen-or-done-lable))       
         
-        
-(define code-gen-if-exp 
+(define code-gen-const
+    (lambda (exp)
+        (let* 
+            ((value (cadr exp))
+            (address (find-address value consts-table)))
+            (string-append 
+                "mov rax, [" (number->string (+ 1 address)) "];\n"))))
+
+(define code-gen-if 
     (lambda (exp)
         (let
             ((test (cadr exp))
@@ -283,18 +282,58 @@
             
             (string-append 
                 (code-gen test) 
-                "cmp rax, " (number->string (+ 1 false-address)) ";\n"
+                "cmp rax, [" (number->string (+ 1 false-address)) "];\n"
                 "je " L_else ";\n"
                 (code-gen dit)
                 "jmp " L_done ";\n"
                 L_else ":\n"
                 (code-gen dif)
                 L_done ":\n"))))
+
                 
+;; input: list of srtings
+;; output: appended string
+;; example: '("a" "bc" "d") ==> "abcd"
+(define append-str-list-with
+    (lambda (str-lst extra-str)
+        (fold-left
+                (lambda (acc-str str) (string-append acc-str str extra-str))
+                ""
+                str-lst)))
                 
-        
-        
-        
+(define append-str-list
+    (lambda (str-lst)
+        (append-str-list-with str-lst "")))
+                
+(define code-gen-seq 
+    (lambda (exp)
+        (let ((rest (cadr exp)))
+            (append-str-list (map code-gen rest)))))
+            
+(define code-gen-or 
+    (lambda (exp)
+        (let* 
+            ((rest (cadr exp))
+            (rvs-rest (reverse rest))
+            (last-elm (car rvs-rest))
+            (all-except-last-elm (reverse (cdr rvs-rest)))
+            (false-address (find-address #f consts-table))
+            (L_done (gen-or-done-lable)))
+            (string-append
+                (append-str-list-with 
+                    (map code-gen all-except-last-elm) 
+                    (string-append 
+                        "cmp rax, [" (number->string (+ 1 false-address)) "];\n"
+                        "jne " L_done ";\n"))
+                (code-gen last-elm)
+                L_done ":\n"))))
+  
+(define string->file
+    (lambda (file-name str)
+        (let 
+            ((file (open-output-file file-name 'replace)))
+            (display str file)
+            (close-output-port file))))
         
 (define code-gen 
     (lambda (exp)
@@ -303,7 +342,10 @@
             (else
                 (let ((tag (car exp)))
                     (cond 
-                        ((equal? tag 'if3) (code-gen-if-exp exp))))
+                        ((equal? tag 'const) (code-gen-const exp))
+                        ((equal? tag 'if3) (code-gen-if exp))
+                        ((equal? tag 'seq) (code-gen-seq exp))
+                        ((equal? tag 'or) (code-gen-or exp))))
         
        ))))
        
