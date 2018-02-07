@@ -193,9 +193,9 @@ sobVec1:
 section .bss
 
 extern exit, printf, scanf
-global main, write_sob, write_sob_if_not_void
+;global main, write_sob, write_sob_if_not_void
 section .text
-main:
+;main:
 	nop
 	; setup a fake closure just to see how it prints:
 	mov rax, 0x1234
