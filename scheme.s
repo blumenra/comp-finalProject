@@ -28,6 +28,17 @@
 
 %define MAKE_LITERAL(type, lit) ((lit << TYPE_BITS) | type)
 
+%macro gigabyte 0
+	mov rax, 1
+	shl rax, 30
+%endmacro
+
+%macro my_malloc 1
+	mov rbx, malloc_pointer
+        mov rax, qword [rbx]
+        add qword [rbx], %1
+%endmacro
+
 %macro TYPE 1
 	and %1, ((1 << TYPE_BITS) - 1) 
 %endmacro
@@ -64,9 +75,21 @@
 	push rax
 	push rbx
 	mov rax, %1
-	mov qword [rax], %2 - start_of_data
+	
+	; Added by alon and ziv
+	mov qword [rax], %2
+	sub qword [rax], start_of_data
+	; Added by alon and ziv
+	
+	;mov qword [rax], %2 - start_of_data
 	shl qword [rax], ((WORD_SIZE - TYPE_BITS) >> 1)
-	lea rbx, [rax + 8 - start_of_data]
+	
+	; Added by alon and ziv
+	lea rbx, [rax + 8]
+        sub rbx, start_of_data
+        ; Added by alon and ziv
+        
+	;lea rbx, [rax + 8 - start_of_data]
 	or qword [rax], rbx
 	shl qword [rax], TYPE_BITS
 	or qword [rax], T_CLOSURE
@@ -192,6 +215,11 @@ sobVec1:
 
 section .bss
 
+malloc_pointer:
+    resq 1
+start_of_malloc:
+    resb gigabyte
+        
 extern exit, printf, scanf
 ;global main, write_sob, write_sob_if_not_void
 section .text

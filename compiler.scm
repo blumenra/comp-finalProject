@@ -329,24 +329,60 @@
 			"global_table:\n"
 			(append-str-list (map gen-fvar-label global-var-table))
 			"\n")))
-    
+
+			
+(define print-macro-str
+    (string-append
+        "%include \"scheme.s\"\n\n"
+            
+        "%macro print 2 \n\n"
+        "push rdi \n"
+        "push rsi \n"
+        "push rax \n"
+        
+        "mov rdi,%1 \n"
+        "mov rsi,%2 \n"
+        "mov rax,0 \n"
+        "call printf \n"
+        
+        "pop rax \n"
+        "pop rsi \n"
+        "pop rdi \n\n"
+
+        "%endmacro \n\n"))
+			
 ;; input: ??
 ;; output: string of the head code in assembly
 (define make-prologue
     (lambda ()
         (string-append 
-            "%include \"scheme.s\"\n\n"
-			"L_error: \n\n"
+            
+            print-macro-str
+            
+            "section .rodata \n"
+            "\t format_str: DB \"%s\", 10,0 \n"
+            "\t format_num: DD \"%d\", 10,0 \n"
+            
+            "\t newline: DB 10, 0 \n"
+            "\t error_msg: DB \"ERROR!!!\", 10, 0 \n\n"
             (initialize-tables-to-asm)
             "global main\n"
             "section .text\n"
             "main:\n\n"
+            "mov rax, malloc_pointer \n"
+            "mov qword [rax], start_of_malloc \n\n"
             )))
             
 (define make-epilogue
     (lambda ()
-        (string-append 
-            "ret\n")))
+        (string-append
+            "\n"
+            "ret\n"
+            "\n\n"
+            "L_error: \n"
+            "\t print format_str, error_msg \n\n"
+            
+            )))
         
 (define write-sob-string
     (string-append 
@@ -377,7 +413,7 @@
                      trg-file 
                      (string-append 
                         (make-prologue)
-                         (append-str-list (map (lambda (exp) (code-gen exp '())) lst-sexp)) ; not sure how to handle the env in this line yet
+                         (append-str-list (map (lambda (exp) (code-gen exp 0)) lst-sexp)) ; not sure how to handle the env in this line yet
 						 write-sob-string
                          (make-epilogue)))
                 ;(string->file trg-file (append-str-list (map code-gen lst-sexp)))
@@ -398,7 +434,10 @@
 (define gen-if3-done-lable (make-gen-if3-done-lable))
 
 (define make-gen-or-done-lable (make-lable-count "L_or_done"))
-(define gen-or-done-lable (make-gen-or-done-lable))       
+(define gen-or-done-lable (make-gen-or-done-lable)) 
+
+(define make-gen-lambda-lable (make-lable-count "L_lambda_code"))
+(define gen-lambda-lable (make-gen-lambda-lable)) 
         
 (define code-gen-const
     (lambda (exp env)
@@ -492,7 +531,8 @@
                 "CLOSURE_ENV rbx \n"
                 "push rbx \n"
                 "CLOSURE_CODE rax \n"
-                "call rax \n"))))
+                "call rax \n"
+                "add rsp, 8 * (3 + " (number->string num-of-params) ") \n"))))
 				
 (define code-gen-set
     (lambda (exp env)
@@ -500,21 +540,21 @@
             (lst_var (cadr exp))
             (e (caddr exp)))
             (cond 
-    ;				((equal? tag 'pvar)
-    ;					(let ((minor (caddr lst_var)))
-    ;						(string-append
-    ;							(code-gen e)
-    ;							"mov qword [rbp + (4 + " (number->string minor) ") * 8], rax \n"
-    ;							"mov rax, L_const1 \n")))
-    ;				((equal? tag 'bvar)
-    ;					(let ((major (caddr lst_var))
-    ;						(minor (cadddr lst_var)))
-    ;						(string-append
-    ;							(code-gen e)
-    ;							"mov rbx, qword [rbp +  2 * 8] \n"
-    ;							"mov rbx, qword [rbx + " (number->string major) " * 8] \n"
-    ;							"mov qword [rbx + " (number->string minor) " * 8], rax \n"
-    ;							"mov rax, L_const1 \n")))
+                ((equal? tag 'pvar)
+                    (let ((minor (caddr lst_var)))
+                        (string-append
+                            (code-gen e)
+                            "mov qword [rbp + (4 + " (number->string minor) ") * 8], rax \n"
+                            "mov rax, L_const1 \n")))
+                ((equal? tag 'bvar)
+                    (let ((major (caddr lst_var))
+                        (minor (cadddr lst_var)))
+                        (string-append
+                            (code-gen e)
+                            "mov rbx, qword [rbp +  2 * 8] \n"
+                            "mov rbx, qword [rbx + " (number->string major) " * 8] \n"
+                            "mov qword [rbx + " (number->string minor) " * 8], rax \n"
+                            "mov rax, L_const1 \n")))
                 ((equal? tag 'fvar)
                     (let* ((value (cadr lst_var))
                         (address (find-address value global-var-table)))
@@ -598,10 +638,48 @@
                     (code-gen e env)
                     "mov [L_glob" (number->string address) "], rax \n"
                     "mov rax, L_const1 \n"))))
+
+;; copy all elements of @lst to the memory which in register @reg starting from index @mem-index
+(define copy-to-memory
+    (lambda (lst reg mem-index count)
+        (if (null? lst)
+            ""
+            (string-append
+                "add " reg ", 8*" (number->string mem-index) " \n" ;increse the iterator by 8 bytes
+                "mov qword [" reg "], " (number->string count) "\n" ; copy the current param to memory
+                (copy-to-memory (cdr lst) reg (+ mem-index 1) (+ 1 count)))))) ; continue to copy the rest of the params to memory
                     
 (define code-gen-lambda-simple
     (lambda (exp env)
-				
+        (let* 
+            ((params (cadr exp))
+            (num-of-params (length params))
+            (body (cddr exp))
+            ;(env-size (length env))
+            (code-lable (gen-lambda-lable))
+            (end-lambda-lable (string-append "END_" code-lable))) 
+                (string-append
+                    "mov rax, [malloc_pointer] \n"
+                    "my_malloc 8 \n"
+                    "mov rbx, [malloc_pointer] \n"
+                    "my_malloc (8*" (number->string (+ 1 env)) ") \n"
+                    "mov rcx, [malloc_pointer] \n"
+                    "my_malloc (8*" (number->string num-of-params) ") \n"
+                    (copy-to-memory params "rcx" 0 0)
+                    "mov qword [rbx], rcx \n"
+                    (copy-to-memory env "rbx" 1 0)
+                    "MAKE_LITERAL_CLOSURE rax, rbx, " code-lable "\n"
+                    "mov rax, [rax] \n"
+                    "jmp " end-lambda-lable "\n"
+                    code-lable ": \n"
+                    "push rbp \n"
+                    "mov rbp, rsp \n"
+                    (append-str-list 
+                        (map (lambda (exp) (code-gen exp (+ 1 env))) body))
+                    "leave \n"
+                    "ret \n"
+                    end-lambda-lable ": \n"))))
+
 (define string->file
     (lambda (file-name str)
         (let 
@@ -629,8 +707,8 @@
                         ((equal? tag 'pvar) (code-gen-pvar exp env))
                         ((equal? tag 'bvar) (code-gen-bvar exp env))
                         ((equal? tag 'fvar) (code-gen-fvar exp env))
-                        ((equal? tag 'define) (code-gen-def exp env))))
-                        ;((equal? tag 'lambda-simple) (code-gen-or exp env))))
+                        ((equal? tag 'define) (code-gen-def exp env))
+                        ((equal? tag 'lambda-simple) (code-gen-lambda-simple exp env))))
                         ;((equal? tag 'lambda-opt) (code-gen-or exp env))))
 						
        ))))

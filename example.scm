@@ -1,3 +1,1 @@
-(define y 9)
-(set! x 8)
-y
+(((lambda (x) (lambda (y) x)) 1) 2)
