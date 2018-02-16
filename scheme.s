@@ -28,15 +28,46 @@
 
 %define MAKE_LITERAL(type, lit) ((lit << TYPE_BITS) | type)
 
+;;; MAKE_MALLOC_LITERAL_PAIR target-address, car-address, cdr-address
+%macro MAKE_MALLOC_LITERAL_PAIR 3
+push rax 
+push rbx 
+mov rax, %1 
+mov qword [rax], %2
+sub qword [rax], start_of_data
+shl qword [rax], ((WORD_SIZE - TYPE_BITS) >> 1) 
+mov rbx, %3 
+sub rbx, start_of_data
+or qword [rax], rbx 
+shl qword [rax], TYPE_BITS 
+or qword [rax], T_PAIR 
+pop rbx 
+pop rax 
+%endmacro
+
+;%1=integer
+;%2=reg for numerator
+;%3=reg for denominator
+%macro int_to_frac 3
+    mov %2, %1
+    mov %3, 1
+%endmacro   
+
 %macro gigabyte 0
 	mov rax, 1
 	shl rax, 30
 %endmacro
 
 %macro my_malloc 1
+	push rbx
+	push rax
+	
 	mov rbx, malloc_pointer
         mov rax, qword [rbx]
         add qword [rbx], %1
+        
+        pop rax
+        pop rbx
 %endmacro
 
 %macro TYPE 1
@@ -56,6 +87,8 @@
 	DATA_UPPER %1
 %endmacro
 
+%define MAKE_LITERAL_FRACTION(car, cdr) (((((car - start_of_data) << ((WORD_SIZE - TYPE_BITS) >> 1)) | (cdr - start_of_data)) << TYPE_BITS) | T_FRACTION)
+
 %define MAKE_LITERAL_PAIR(car, cdr) (((((car - start_of_data) << ((WORD_SIZE - TYPE_BITS) >> 1)) | (cdr - start_of_data)) << TYPE_BITS) | T_PAIR)
 
 %macro CAR 1
@@ -64,11 +97,24 @@
 	mov %1, qword [%1]
 %endmacro
 
+%macro MY_CAR 1
+	DATA_UPPER %1
+	add %1, start_of_data
+
+%endmacro
+
+%macro MY_CDR 1
+	DATA_LOWER %1
+	add %1, start_of_data
+
+%endmacro
+
 %macro CDR 1
 	DATA_LOWER %1
 	add %1, start_of_data
 	mov %1, qword [%1]
 %endmacro
+
 
 ;;; MAKE_LITERAL_CLOSURE target, env, code
 %macro MAKE_LITERAL_CLOSURE 3
@@ -310,7 +356,7 @@ write_sob_char:
 	jg .Lregular
 
 	mov rdi, .special
-	jmp .done	
+	jmp .done
 
 .Lnul:
 	mov rdi, .nul
@@ -363,7 +409,7 @@ section .data
 .special:
 	db "#\x%02x", 0
 .regular:
-	db "#\\%c", 0
+	db "#\%c", 0
 
 write_sob_void:
 	push rbp
