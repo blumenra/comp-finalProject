@@ -233,8 +233,8 @@
             make-vector map eq? not null? number? numerator pair? procedure? rational? 
             remainder set-car! set-cdr! string-length string-ref string-set! 
             string->symbol string? symbol? symbol->string vector vector-length 
-            ;vector-ref vector-set! vector? zero? our_gcd))))
-            vector-ref vector-set! vector? zero? our_gcd smaller-then-bin))))
+            ;vector-ref vector-set! vector? zero? our_gcd)))) // REVIVE ME!!
+            vector-ref vector-set! vector? zero? our_gcd smaller-then-bin)))) //REMOVE ME
             
 
 (define initialize-tables-to-asm
@@ -402,7 +402,7 @@
             (ass-set-car!)
             (ass-set-cdr!)
             (ass-remainder)
-            (ass-smaller-then-bin)
+            (ass-smaller-then-bin) ;REMOVE ME (here only for test)
 			
                  
         )))
