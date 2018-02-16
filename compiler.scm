@@ -233,7 +233,9 @@
             make-vector map eq? not null? number? numerator pair? procedure? rational? 
             remainder set-car! set-cdr! string-length string-ref string-set! 
             string->symbol string? symbol? symbol->string vector vector-length 
-            vector-ref vector-set! vector? zero? our_gcd))))    
+            ;vector-ref vector-set! vector? zero? our_gcd))))
+            vector-ref vector-set! vector? zero? our_gcd smaller-then-bin))))
+            
 
 (define initialize-tables-to-asm
     (lambda ()
@@ -400,6 +402,7 @@
             (ass-set-car!)
             (ass-set-cdr!)
             (ass-remainder)
+            (ass-smaller-then-bin)
 			
                  
         )))
@@ -1706,8 +1709,8 @@
         (let* 
             ((address (find-address 'smaller-then-bin global-var-table)))
             (string-append 
-                "jmp L_make_smaller-then-bin \n" 
-                "L_smaller-then-bin: \n"
+                "jmp L_make_smaller_then_bin \n" 
+                "L_smaller_then_bin: \n"
                 "push rbp \n"
                 "mov rbp, rsp \n"
                 "mov rbx, [rbp + 8*3] \n"
@@ -1727,7 +1730,7 @@
                 "mov r8, rax \n"
                 "CDR rbx \n"
                 "mov r9, rbx \n"
-                "jmp L_next_arg1: \n "
+                "jmp L_next_arg1 \n "
                 
                 "L_make_frac1: \n"
                 "DATA rax \n"
@@ -1750,13 +1753,13 @@
                 "mov r10, rcx \n"
                 "CDR rbx \n"
                 "mov r11, rbx \n"
-                "jmp L_start_smaller-then-bin \n "
+                "jmp L_start_smaller_then_bin \n "
                 
                 "L_make_frac12: \n"
                 "DATA rcx \n"
                 "int_to_frac rcx, r10, r11 \n"
                
-                "L_start_smaller-then-bin: \n"
+                "L_start_smaller_then_bin: \n"
                 ";At this point the first argument is stored as fraction in r8, r9 \n"
                 ";At this point the second argument is stored as fraction in r10, r11 \n"
                 
@@ -1771,31 +1774,31 @@
                 "mov rdi, rax \n"
                 
                 "cmp r13, rsi \n"
-                "jg L_smaller-then-bin_false \n"
+                "jg L_smaller_then_bin_false \n"
                 "cmp r13, rsi \n"
-                "jl L_smaller-then-bin_true \n"
+                "jl L_smaller_then_bin_true \n"
                 
                 "cmp r14, rdi \n"
-                "jge L_smaller-then-bin_false \n"
+                "jge L_smaller_then_bin_false \n"
                 "cmp r14, rdi \n"
-                "jl L_smaller-then-bin_true \n"
+                "jl L_smaller_then_bin_true \n"
       
-                "L_smaller-then-bin_false: \n"
+                "L_smaller_then_bin_false: \n"
                 "mov rax, L_const5 \n"
-                "jmp L_end_smaller-then-bin: \n"
+                "jmp L_end_smaller_then_bin \n"
                 
-                "L_smaller-then-bin_true \n"
+                "L_smaller_then_bin_true \n"
                 "mov rax, L_const3 \n"
-                "jmp L_end_smaller-then-bin: \n"
+                "jmp L_end_smaller_then_bin \n"
              
         
-                "L_end_smaller-then-bin: \n"
+                "L_end_smaller_then_bin: \n"
                 "leave \n"
                 "ret \n"
                 
-                "L_smaller-then-bin: \n"
+                "L_make_smaller_then_bin \n"
                 "mov rax, [malloc_pointer] \n"
                 "my_malloc 16 \n"
-                "MAKE_LITERAL_CLOSURE rax, L_const2, L_smaller-then-bin \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_smaller_then_bin \n"
                 "mov rax, [rax] \n"
                 "mov [L_glob" (number->string address) "], rax \n\n" ))))

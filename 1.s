@@ -29,13 +29,15 @@ L_const5:
 L_const7:
 	dq MAKE_LITERAL(3, 1)
 L_const9:
-	dq MAKE_LITERAL(3, 2)
+	dq MAKE_LITERAL(3, 56)
 L_const11:
-	dq MAKE_LITERAL_FRACTION(L_const7, L_const9)
-L_const14:
-	dq MAKE_LITERAL_PAIR(L_const7, L_const9)
+	dq MAKE_LITERAL(3, 57)
+L_const13:
+	dq MAKE_LITERAL_FRACTION(L_const9, L_const11)
 
 global_table:
+L_glob16:
+	 dq SOB_UNDEFINED 
 L_glob17:
 	 dq SOB_UNDEFINED 
 L_glob18:
@@ -481,8 +483,105 @@ MAKE_LITERAL_CLOSURE rax, L_const2, L_remainder
 mov rax, [rax] 
 mov [L_glob47], rax 
 
-mov rax, L_const11 
-mov rax, L_const14 
+jmp L_make_smaller_then_bin 
+L_smaller_then_bin: 
+push rbp 
+mov rbp, rsp 
+mov rbx, [rbp + 8*3] 
+cmp rbx , 2 
+jne L_incorrect_num_of_args 
+mov rax, [rbp + 8*4] 
+mov rax, [rax] 
+mov rbx, rax 
+TYPE rbx 
+cmp rbx, T_INTEGER 
+je L_make_frac1 
+ cmp rbx, T_FRACTION 
+jne L_incorrect_type 
+ mov rbx, rax 
+CAR rax 
+mov r8, rax 
+CDR rbx 
+mov r9, rbx 
+jmp L_next_arg1 
+ L_make_frac1: 
+DATA rax 
+int_to_frac rax, r8, r9 
+L_next_arg1: 
+;At this point the first argument is stored as fraction in r8, r9 
+mov rcx, [rbp + 8*5] 
+mov rcx, [rcx] 
+mov rbx, rcx 
+TYPE rbx 
+cmp rbx, T_INTEGER 
+je L_make_frac12 
+ cmp rbx, T_FRACTION 
+jne L_incorrect_type 
+ mov rbx, rcx 
+CAR rcx 
+mov r10, rcx 
+CDR rbx 
+mov r11, rbx 
+jmp L_start_smaller_then_bin 
+ L_make_frac12: 
+DATA rcx 
+int_to_frac rcx, r10, r11 
+L_start_smaller_then_bin: 
+;At this point the first argument is stored as fraction in r8, r9 
+;At this point the second argument is stored as fraction in r10, r11 
+mov rax, r8 
+imul r11 
+mov r13, rdx 
+mov r14, rax 
+mov rax, r9 
+imul r10 
+mov rsi, rdx 
+mov rdi, rax 
+cmp r13, rsi 
+jg L_smaller_then_bin_false 
+cmp r13, rsi 
+jl L_smaller_then_bin_true 
+cmp r14, rdi 
+jge L_smaller_then_bin_false 
+cmp r14, rdi 
+jl L_smaller_then_bin_true 
+L_smaller_then_bin_false: 
+mov rax, L_const5 
+jmp L_end_smaller_then_bin 
+L_smaller_then_bin_true 
+mov rax, L_const3 
+jmp L_end_smaller_then_bin 
+L_end_smaller_then_bin: 
+leave 
+ret 
+L_make_smaller_then_bin 
+mov rax, [malloc_pointer] 
+my_malloc 16 
+MAKE_LITERAL_CLOSURE rax, L_const2, L_smaller_then_bin 
+mov rax, [rax] 
+mov [L_glob16], rax 
+
+push L_const2 
+mov rax, L_const13 
+push rax 
+mov rax, L_const7 
+push rax 
+push 2
+mov rax, L_glob16 
+mov rbx, [rax] 
+TYPE rbx 
+cmp rbx, T_CLOSURE 
+jne L_error 
+mov rbx, [rax] 
+CLOSURE_ENV rbx 
+push rbx 
+mov rax, [rax] 
+CLOSURE_CODE rax 
+call rax 
+mov rbx, qword [rsp + 8] 
+add rbx, 2 
+shl rbx, 3 
+add rsp, rbx 
 push qword [rax]
 call write_sob_if_not_void
 add rsp, 1*8

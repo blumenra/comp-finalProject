@@ -32,5 +32,4 @@
 ;(vector-ref '#(1 (1 2) 3) 1)
 
 ;(remainder -4 12)
-1/2
-'(1 . 2)
+(smaller-then-bin 1 56/57)
