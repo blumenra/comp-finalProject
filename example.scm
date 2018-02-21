@@ -1,7 +1,7 @@
 ;(((lambda (x) 
 ;(lambda ( y ) (set! x 1) x)) 4) 5)
 
-;(define l '(1 2 3))
+(define l '(1 2 3))
 ;(set-cdr! l '(3 4 5 6 7))
 ;l
 
@@ -32,4 +32,31 @@
 ;(vector-ref '#(1 (1 2) 3) 1)
 
 ;(remainder -4 12)
-(smaller-then-bin 1 56/57)
+;(numerator -4/8)
+;(numerator 0)
+;(numerator -5)
+
+;(denominator -4/8)
+;(denominator 0)
+;(denominator -5)
+
+;; (define plusss
+;;     (lambda x
+;;         (let ((len (length x)))
+;;             (cond 
+;;                 ((= len 0) 0)
+;;                 ((= len 1) (car x))
+;;                (else (+ (car x) (plusss (cdr x))))))))
+   
+   
+;; (define plusss
+;;     (lambda (x)
+;;           (+ (car x) (car (cdr x)))))
+;;      
+;; (plusss '(1 2))
+;; (define plusss
+;;     (lambda (x)
+;;         (if (zero? x)
+;;             22
+;;             (plusss (- x 1)))))
+;(car (cdr '(1 2)))

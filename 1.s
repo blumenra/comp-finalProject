@@ -29,25 +29,17 @@ L_const5:
 L_const7:
 	dq MAKE_LITERAL(3, 1)
 L_const9:
-	dq MAKE_LITERAL(3, 56)
+	dq MAKE_LITERAL(3, 2)
 L_const11:
-	dq MAKE_LITERAL(3, 57)
+	dq MAKE_LITERAL(3, 3)
 L_const13:
-	dq MAKE_LITERAL_FRACTION(L_const9, L_const11)
+	dq MAKE_LITERAL_PAIR(L_const11, L_const2)
+L_const16:
+	dq MAKE_LITERAL_PAIR(L_const9, L_const13)
+L_const19:
+	dq MAKE_LITERAL_PAIR(L_const7, L_const16)
 
 global_table:
-L_glob16:
-	 dq SOB_UNDEFINED 
-L_glob17:
-	 dq SOB_UNDEFINED 
-L_glob18:
-	 dq SOB_UNDEFINED 
-L_glob19:
-	 dq SOB_UNDEFINED 
-L_glob20:
-	 dq SOB_UNDEFINED 
-L_glob21:
-	 dq SOB_UNDEFINED 
 L_glob22:
 	 dq SOB_UNDEFINED 
 L_glob23:
@@ -132,6 +124,18 @@ L_glob62:
 	 dq SOB_UNDEFINED 
 L_glob63:
 	 dq SOB_UNDEFINED 
+L_glob64:
+	 dq SOB_UNDEFINED 
+L_glob65:
+	 dq SOB_UNDEFINED 
+L_glob66:
+	 dq SOB_UNDEFINED 
+L_glob67:
+	 dq SOB_UNDEFINED 
+L_glob68:
+	 dq SOB_UNDEFINED 
+L_glob69:
+	 dq SOB_UNDEFINED 
 
 global main
 section .text
@@ -161,7 +165,7 @@ mov rax, [malloc_pointer]
 my_malloc 16 
 MAKE_LITERAL_CLOSURE rax, L_const2, L_car 
 mov rax, [rax] 
-mov [L_glob27], rax 
+mov [L_glob33], rax 
 
 jmp L_make_cdr 
 L_cdr: 
@@ -184,7 +188,7 @@ mov rax, [malloc_pointer]
 my_malloc 16 
 MAKE_LITERAL_CLOSURE rax, L_const2, L_cdr 
 mov rax, [rax] 
-mov [L_glob28], rax 
+mov [L_glob34], rax 
 
 jmp L_make_cons 
 L_cons: 
@@ -217,46 +221,10 @@ mov rax, [malloc_pointer]
 my_malloc 16 
 MAKE_LITERAL_CLOSURE rax, L_const2, L_cons 
 mov rax, [rax] 
-mov [L_glob31], rax 
+mov [L_glob37], rax 
 
-jmp L_make_string_ref 
-L_string_ref: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_STRING 
-jne L_incorrect_type 
- mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rbx, rcx 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- DATA rcx 
-mov rdx, 0 
-STRING_REF dl, rax, rcx 
-mov rax, [malloc_pointer] 
-my_malloc 8 
-mov qword [rax],  rdx 
-shl qword [rax], 4 
-or qword [rax], T_CHAR 
-leave 
-ret 
-L_make_string_ref: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_string_ref 
-mov rax, [rax] 
-mov [L_glob51], rax 
-
-jmp L_make_make_string 
-L_make_string: 
+jmp L_make_plus_bin 
+L_plus_bin: 
 push rbp 
 mov rbp, rsp 
 mov rbx, [rbp + 8*3] 
@@ -267,321 +235,105 @@ mov rax, [rax]
 mov rbx, rax 
 TYPE rbx 
 cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- mov rbx, rax 
-DATA rbx 
-mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rdx, rcx 
-TYPE rdx 
-cmp rdx, T_CHAR 
-jne L_incorrect_type 
- mov r10, rbx ;save the length 
-mov r9, rbx                        ;use r9 as size to malloc 
-mov r8 , 64                         ;space for length 
-add r9, r8                         ;make space for the length
-add r9, 4                          ;make space for the type 
-push r10 
-push r8 
-push r9 
-DATA rcx 
-pop r9                             ;restore r9 
-mov rax, [malloc_pointer] 
-mov rdx, rax 
-my_malloc r9 
-L_make_string_loop: 
-cmp rbx, 0 
-je L_end_loop 
-mov [rdx],rcx 
-add rdx, 1 
-sub rbx, 1 
-jmp L_make_string_loop 
-L_end_loop: 
-pop r8 
-pop r10 
-shl qword [rax], 4 
-or qword [rax], T_STRING 
-shl qword [rax], 64 
-or qword [rax], r10 
-leave 
-ret 
-L_make_make_string: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_make_string 
-mov rax, [rax] 
-mov [L_glob36], rax 
-
-jmp L_make_vector_ref 
-L_vector_ref: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_VECTOR 
-jne L_incorrect_type 
- mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rbx, rcx 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- DATA rcx 
-VECTOR_ELEMENTS rax 
-mov rax, [rax + rcx*8] 
-leave 
-ret 
-L_make_vector_ref: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_vector_ref 
-mov rax, [rax] 
-mov [L_glob59], rax 
-
-jmp L_make_vector_set 
-L_vector_set: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 3 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_VECTOR 
-jne L_incorrect_type 
- mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rbx, rcx 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- DATA rcx 
-mov rdx, [rbp + 8*6] 
-VECTOR_ELEMENTS rax 
-shl rcx, 3 
-add rax, rcx 
-mov [rax], rdx 
-mov rax, L_const1 
-leave 
-ret 
-L_make_vector_set: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_vector_set 
-mov rax, [rax] 
-mov [L_glob60], rax 
-
-jmp L_make_set_car 
-L_set_car: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_PAIR 
-jne L_incorrect_type 
- MY_CAR rax 
-mov qword [rax], rcx 
-mov rax, L_const1 
-leave 
-ret 
-L_make_set_car: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_set_car 
-mov rax, [rax] 
-mov [L_glob48], rax 
-
-jmp L_make_set_cdr 
-L_set_cdr: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_PAIR 
-jne L_incorrect_type 
- MY_CDR rax 
-mov qword [rax], rcx 
-mov rax, L_const1 
-leave 
-ret 
-L_make_set_cdr: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_set_cdr 
-mov rax, [rax] 
-mov [L_glob49], rax 
-
-jmp L_make_remainder 
-L_remainder: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- mov rcx, [rbp + 8*5] 
-mov rcx, [rcx] 
-mov rbx, rcx 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-jne L_incorrect_type 
- mov rdx, 0 
-DATA rax 
-DATA rcx 
-cmp rax, 0 
-jge L_CONT 
-mov r8, rax 
-sar rax, 31      ; -1 or 0 (sign of rax) 
-xor r8, rax 
-sub r8, rax 
-mov rax, r8 
-idiv rcx 
-mov r8, rdx 
-mov rdx, 0 
-sub rdx, r8 
-jmp L_CONT2 
-L_CONT: 
-idiv rcx 
-L_CONT2: 
-mov rax, [malloc_pointer] 
-my_malloc 8 
-mov qword [rax],  rdx 
-shl qword [rax], 4 
-or qword [rax], T_INTEGER 
-leave 
-ret 
-L_make_remainder: 
-mov rax, [malloc_pointer] 
-my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_remainder 
-mov rax, [rax] 
-mov [L_glob47], rax 
-
-jmp L_make_smaller_then_bin 
-L_smaller_then_bin: 
-push rbp 
-mov rbp, rsp 
-mov rbx, [rbp + 8*3] 
-cmp rbx , 2 
-jne L_incorrect_num_of_args 
-mov rax, [rbp + 8*4] 
-mov rax, [rax] 
-mov rbx, rax 
-TYPE rbx 
-cmp rbx, T_INTEGER 
-je L_make_frac1 
+je L_make_frac4 
  cmp rbx, T_FRACTION 
 jne L_incorrect_type 
  mov rbx, rax 
 CAR rax 
+DATA rax 
 mov r8, rax 
 CDR rbx 
+DATA rbx 
 mov r9, rbx 
-jmp L_next_arg1 
- L_make_frac1: 
+jmp L_next_arg4 
+ L_make_frac4: 
 DATA rax 
 int_to_frac rax, r8, r9 
-L_next_arg1: 
+L_next_arg4: 
 ;At this point the first argument is stored as fraction in r8, r9 
 mov rcx, [rbp + 8*5] 
 mov rcx, [rcx] 
 mov rbx, rcx 
 TYPE rbx 
 cmp rbx, T_INTEGER 
-je L_make_frac12 
+je L_make_frac42 
  cmp rbx, T_FRACTION 
 jne L_incorrect_type 
  mov rbx, rcx 
 CAR rcx 
+DATA rcx 
 mov r10, rcx 
 CDR rbx 
+DATA rbx 
 mov r11, rbx 
-jmp L_start_smaller_then_bin 
- L_make_frac12: 
+jmp L_start_plus_bin 
+ L_make_frac42: 
 DATA rcx 
 int_to_frac rcx, r10, r11 
-L_start_smaller_then_bin: 
+L_start_plus_bin: 
 ;At this point the first argument is stored as fraction in r8, r9 
 ;At this point the second argument is stored as fraction in r10, r11 
+mov rax, r9 
+imul r11 
+mov r13, rax 
 mov rax, r8 
 imul r11 
-mov r13, rdx 
 mov r14, rax 
 mov rax, r9 
 imul r10 
-mov rsi, rdx 
+mov rsi, rax 
+add rsi, r14 
+push r13 
+push rsi 
+push r13 
+push rsi 
+call gcd 
+add rsp, 8*2 
+pop rsi 
+pop r13 
 mov rdi, rax 
-cmp r13, rsi 
-jg L_smaller_then_bin_false 
-cmp r13, rsi 
-jl L_smaller_then_bin_true 
-cmp r14, rdi 
-jge L_smaller_then_bin_false 
-cmp r14, rdi 
-jl L_smaller_then_bin_true 
-L_smaller_then_bin_false: 
-mov rax, L_const5 
-jmp L_end_smaller_then_bin 
-L_smaller_then_bin_true 
-mov rax, L_const3 
-jmp L_end_smaller_then_bin 
-L_end_smaller_then_bin: 
+my_idiv r13, rdi 
+mov r13, rax 
+my_idiv rsi, rdi 
+mov rsi, rax 
+mov rax, [malloc_pointer] 
+my_malloc 8 
+mov qword [rax], rsi 
+shl qword [rax], 4 
+or qword [rax], T_INTEGER 
+mov rsi, rax 
+mov rax, [malloc_pointer] 
+my_malloc 8 
+mov qword [rax], r13 
+shl qword [rax], 4 
+or qword [rax], T_INTEGER 
+mov r13, rax 
+mov rax, [malloc_pointer] 
+my_malloc 8 
+mov r8, [r13] 
+DATA r8 
+cmp r8, 1 
+je .L_make_integer 
+mov r10, rax 
+MAKE_MALLOC_LITERAL_FRACTION r10, rsi, r13 
+mov rax, r10 
+jmp L_end_plus_bin 
+.L_make_integer: 
+mov rax, rsi 
+L_end_plus_bin: 
 leave 
 ret 
-L_make_smaller_then_bin 
+L_make_plus_bin: 
 mov rax, [malloc_pointer] 
 my_malloc 16 
-MAKE_LITERAL_CLOSURE rax, L_const2, L_smaller_then_bin 
+MAKE_LITERAL_CLOSURE rax, L_const2, L_plus_bin 
 mov rax, [rax] 
-mov [L_glob16], rax 
+mov [L_glob28], rax 
 
-push L_const2 
-mov rax, L_const13 
-push rax 
-mov rax, L_const7 
-push rax 
-push 2
-mov rax, L_glob16 
-mov rbx, [rax] 
-TYPE rbx 
-cmp rbx, T_CLOSURE 
-jne L_error 
-mov rbx, [rax] 
-CLOSURE_ENV rbx 
-push rbx 
+mov rax, L_const19 
 mov rax, [rax] 
-CLOSURE_CODE rax 
-call rax 
-mov rbx, qword [rsp + 8] 
-add rbx, 2 
-shl rbx, 3 
-add rsp, rbx 
+mov [L_glob22], rax 
+mov rax, L_const1 
 push qword [rax]
 call write_sob_if_not_void
 add rsp, 1*8
@@ -601,6 +353,8 @@ section .rodata
 	 error_num_args_msg: DB "incorrect number of arguments", 10, 0 
 	 error_type_msg: DB "incorrect type", 10, 0 
 
+	 error_division_by_0_msg: DB "Error: Divided by 0", 10, 0 
+
 L_error: 
 	print format_str, error_msg 
    jmp L_END 
@@ -611,6 +365,10 @@ L_incorrect_num_of_args:
 
 L_incorrect_type: 
 	print format_str, error_type_msg 
+   jmp L_END 
+
+L_deivision_by_0_error: 
+	print format_str, error_division_by_0_msg 
    jmp L_END 
 
 L_END: 

@@ -28,6 +28,38 @@
 
 %define MAKE_LITERAL(type, lit) ((lit << TYPE_BITS) | type)
 
+%macro iabs 1
+    cmp %1, 0
+    jge %%cont
+    neg %1
+    %%cont:
+%endmacro
+
+;; my_idiv %1/%2
+%macro my_idiv 2
+
+    push rcx
+    mov rax, %1
+    mov rcx, %2
+    
+    cmp rax, 0
+    jge %%cont
+    iabs rax
+    idiv rcx
+    neg rax
+    jmp %%end
+    
+    %%cont:
+    idiv rcx
+    
+    %%end:
+    
+    pop rcx                      
+                        
+%endmacro
+
+
+
 ;;; MAKE_MALLOC_LITERAL_PAIR target-address, car-address, cdr-address
 %macro MAKE_MALLOC_LITERAL_PAIR 3
 push rax 
@@ -44,6 +76,58 @@ or qword [rax], T_PAIR
 pop rbx 
 pop rax 
 %endmacro
+
+
+;; MAKE_MALLOC_LITERAL_FRACTION target-address, nominator-value, denominator-value
+;; Caution! this macro does not check weather if the nominator or the denominator is a integer! must check it before using this macro
+%macro MAKE_MALLOC_LITERAL_FRACTION 3
+push rax 
+push rbx 
+push rsi
+push r13
+
+mov rax, [malloc_pointer]
+my_malloc 8
+mov qword [rax], %2
+shl qword [rax], 4
+or qword [rax], T_INTEGER
+mov rsi, rax
+
+mov rax, [malloc_pointer]
+my_malloc 8
+mov qword [rax], %3
+shl qword [rax], 4
+or qword [rax], T_INTEGER
+mov r13, rax
+
+
+mov rax, %1 
+mov qword [rax], rsi
+sub qword [rax], start_of_data
+shl qword [rax], ((WORD_SIZE - TYPE_BITS) >> 1) 
+mov rbx, r13
+sub rbx, start_of_data
+or qword [rax], rbx 
+shl qword [rax], TYPE_BITS 
+or qword [rax], T_FRACTION
+
+pop r13
+pop rsi
+pop rbx 
+pop rax 
+%endmacro
+
+%macro MAKE_MALLOC_LITERAL_INTEGER 1
+
+    
+    mov rax, [malloc_pointer]
+    my_malloc 8
+    mov qword [rax], %1
+    shl qword [rax], 4
+    or qword [rax], T_INTEGER
+    
+%endmacro  
+
 
 ;%1=integer
 ;%2=reg for numerator
@@ -295,6 +379,32 @@ section .text
 	call write_sob_if_not_void
 	add rsp, 1*8
 	
+	ret
+	
+gcd:
+	push rbp
+	mov rbp, rsp
+
+	mov rdx, 0
+	mov rax, [rbp + 8 + 1*8] ; first
+	mov rbx, [rbp + 8 + 2*8] ; second
+	iabs rax
+	iabs rbx
+	cmp rax, rbx
+	jge .loop
+	xchg rax, rbx
+	
+.loop:
+	cmp rbx, 0
+	je .done
+	mov rdx, 0
+	div rbx
+	mov rax, rbx
+	mov rbx, rdx
+	jmp .loop
+
+.done:
+	pop rbp
 	ret
 
 write_sob_undefined:
@@ -591,6 +701,7 @@ section .data
 .close_paren:
 	db ")", 0
 
+	
 write_sob_pair_on_cdr:
 	push rbp
 	mov rbp, rsp
@@ -709,9 +820,31 @@ write_sob_fraction:
 	push rbp
 	mov rbp, rsp
 
+	
+	mov rax, qword [rbp + 8 + 1*8]
+	CAR rax
+	push rax
+	call write_sob
+	add rsp, 1*8
+	
+	mov rax, 0
+	mov rdi, .frac_sign
+	call printf
+	mov rax, qword [rbp + 8 + 1*8]
+	
+	CDR rax
+	push rax
+	call write_sob
+	add rsp, 1*8
+	
+	
 	leave
 	ret
 
+section	.data
+.frac_sign:
+    db "/", 0
+	
 write_sob_closure:
 	push rbp
 	mov rbp, rsp

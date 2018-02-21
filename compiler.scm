@@ -233,8 +233,7 @@
             make-vector map eq? not null? number? numerator pair? procedure? rational? 
             remainder set-car! set-cdr! string-length string-ref string-set! 
             string->symbol string? symbol? symbol->string vector vector-length 
-            ;vector-ref vector-set! vector? zero? our_gcd)))) // REVIVE ME!!
-            vector-ref vector-set! vector? zero? our_gcd smaller-then-bin)))) //REMOVE ME
+            vector-ref vector-set! vector? zero? our_gcd)))) 
             
 
 (define initialize-tables-to-asm
@@ -393,17 +392,25 @@
             ;(ass-not)
             ;(ass-eq?)
             ;(ass-string-len)
-            (ass-string-ref)
-            (ass-make-string)
+;;             (ass-string-ref)
+;;             (ass-make-string)
             ;(ass-string-set!)
             ;(ass-vector-len)
-            (ass-vector-ref)
-            (ass-vector-set!)
-            (ass-set-car!)
-            (ass-set-cdr!)
-            (ass-remainder)
-            (ass-smaller-then-bin) ;REMOVE ME (here only for test)
-			
+;;             (ass-vector-ref)
+;;             (ass-vector-set!)
+;;             (ass-set-car!)
+;;             (ass-set-cdr!)
+;;             (ass-remainder)
+;;             (ass-smaller-then-bin)
+;;             (ass-bigger-then-bin)
+;;             (ass-equals-bin)
+                (ass-plus-bin)
+;;             (ass-minus-bin)
+;;             (ass-mul-bin)
+;;             (ass-div-bin)
+;;             (ass-denominator)
+;;             (ass-numerator)
+            
                  
         )))
             
@@ -441,6 +448,7 @@
             "\t error_msg: DB \"ERROR!!!\", 10, 0 \n"
             "\t error_num_args_msg: DB \"incorrect number of arguments\", 10, 0 \n"
             "\t error_type_msg: DB \"incorrect type\", 10, 0 \n\n"
+            "\t error_division_by_0_msg: DB \"Error: Divided by 0\", 10, 0 \n\n"
             "L_error: \n"
             "	print format_str, error_msg \n"
             "   jmp L_END \n\n"
@@ -449,6 +457,9 @@
             "   jmp L_END \n\n"
             "L_incorrect_type: \n"
             "	print format_str, error_type_msg \n"
+            "   jmp L_END \n\n"
+            "L_deivision_by_0_error: \n"
+            "	print format_str, error_division_by_0_msg \n"
             "   jmp L_END \n\n"
             "L_END: \n"
             
@@ -466,7 +477,7 @@
                 (consts (remove-dups (fold-left append '() (map help (extract-consts lst-sexp)))))
                 (const-table (add-to-consts-table consts basic-table)))
                 (set! consts-table const-table)
-                (set! global-var-table (add-to-global-var-table (primitive-funcs (remove-dups (extract-fvars lst-sexp))) '()))
+                (set! global-var-table (add-to-global-var-table (remove-dups (primitive-funcs (extract-fvars lst-sexp))) '()))
 
                 (display `(lst-sexp: ,lst-sexp))
 				;(code-gen (car lst-sexp))
@@ -476,7 +487,7 @@
                 ;(display `(const-table: ,consts-table))
                 ;(initialize-consts-table-to-asm)
                 ;(newline)
-                ;(display `(global-table: ,global-var-table))
+                (display `(global-table: ,global-var-table))
 				
                 (string->file 
                      trg-file 
@@ -1447,10 +1458,11 @@
                 
                 "pop r8 \n"
                 "pop r10 \n"
-		"shl qword [rax], 4 \n"
-                "or qword [rax], T_STRING \n"
                 "shl qword [rax], 64 \n"
                 "or qword [rax], r10 \n"
+		"shl qword [rax], 4 \n"
+                "or qword [rax], T_STRING \n"
+                
                 
                 "leave \n"
                 "ret \n"
@@ -1707,7 +1719,7 @@
 (define ass-smaller-then-bin
     (lambda ()      
         (let* 
-            ((address (find-address 'smaller-then-bin global-var-table)))
+            ((address (find-address '< global-var-table)))
             (string-append 
                 "jmp L_make_smaller_then_bin \n" 
                 "L_smaller_then_bin: \n"
@@ -1727,8 +1739,10 @@
                 "jne L_incorrect_type \n "
                 "mov rbx, rax \n"
                 "CAR rax \n"
+                "DATA rax \n"
                 "mov r8, rax \n"
                 "CDR rbx \n"
+                "DATA rbx \n"
                 "mov r9, rbx \n"
                 "jmp L_next_arg1 \n "
                 
@@ -1750,8 +1764,10 @@
                 "jne L_incorrect_type \n "
                 "mov rbx, rcx \n"
                 "CAR rcx \n"
+                "DATA rcx \n"
                 "mov r10, rcx \n"
                 "CDR rbx \n"
+                "DATA rbx \n"
                 "mov r11, rbx \n"
                 "jmp L_start_smaller_then_bin \n "
                 
@@ -1787,7 +1803,7 @@
                 "mov rax, L_const5 \n"
                 "jmp L_end_smaller_then_bin \n"
                 
-                "L_smaller_then_bin_true \n"
+                "L_smaller_then_bin_true: \n"
                 "mov rax, L_const3 \n"
                 "jmp L_end_smaller_then_bin \n"
              
@@ -1796,9 +1812,838 @@
                 "leave \n"
                 "ret \n"
                 
-                "L_make_smaller_then_bin \n"
+                "L_make_smaller_then_bin: \n"
                 "mov rax, [malloc_pointer] \n"
                 "my_malloc 16 \n"
                 "MAKE_LITERAL_CLOSURE rax, L_const2, L_smaller_then_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+(define ass-bigger-then-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '> global-var-table)))
+            (string-append 
+                "jmp L_make_bigger_then_bin \n" 
+                "L_bigger_then_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac2 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                 "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp L_next_arg2 \n "
+                
+                "L_make_frac2: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                "L_next_arg2: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac22 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_bigger_then_bin \n "
+                
+                "L_make_frac22: \n"
+                "DATA rcx \n"
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_bigger_then_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+                
+                "mov rax, r8 \n"
+                "imul r11 \n"
+                "mov r13, rdx \n"
+                "mov r14, rax \n"
+                
+                "mov rax, r9 \n"
+                "imul r10 \n"
+                "mov rsi, rdx \n"
+                "mov rdi, rax \n"
+                
+                "cmp r13, rsi \n"
+                "jg L_bigger_then_bin_true \n"
+                "cmp r13, rsi \n"
+                "jl L_bigger_then_bin_false \n"
+                
+                "cmp r14, rdi \n"
+                "jg L_bigger_then_bin_true \n"
+                "cmp r14, rdi \n"
+                "jle L_bigger_then_bin_false \n"
+                
+      
+                "L_bigger_then_bin_false: \n"
+                "mov rax, L_const5 \n"
+                "jmp L_end_bigger_then_bin \n"
+                
+                "L_bigger_then_bin_true: \n"
+                "mov rax, L_const3 \n"
+                "jmp L_end_bigger_then_bin \n"
+             
+        
+                "L_end_bigger_then_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_bigger_then_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_bigger_then_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+(define ass-equals-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '= global-var-table)))
+            (string-append 
+                "jmp L_make_equals_bin \n" 
+                "L_equals_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac3 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                 "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp L_next_arg3 \n "
+                
+                "L_make_frac3: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                "L_next_arg3: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac32 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_equals_bin \n "
+                
+                "L_make_frac32: \n"
+                "DATA rcx \n"
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_equals_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+                
+                "mov rax, r8 \n"
+                "imul r11 \n"
+                "mov r13, rdx \n"
+                "mov r14, rax \n"
+                
+                "mov rax, r9 \n"
+                "imul r10 \n"
+                "mov rsi, rdx \n"
+                "mov rdi, rax \n"
+                
+                "cmp r13, rsi \n"
+                "jne L_equals_false \n"
+                "cmp r14, rdi \n"
+                "je L_equals_true \n"
+      
+                "L_equals_false: \n"
+                "mov rax, L_const5 \n"
+                "jmp L_end_equals_bin \n"
+                
+                "L_equals_true: \n"
+                "mov rax, L_const3 \n"
+                "jmp L_end_equals_bin \n"
+             
+        
+                "L_end_equals_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_equals_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_equals_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+(define ass-plus-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '+ global-var-table)))
+            (string-append 
+                "jmp L_make_plus_bin \n" 
+                "L_plus_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac4 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp L_next_arg4 \n "
+                
+                "L_make_frac4: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                "L_next_arg4: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac42 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_plus_bin \n "
+                
+                "L_make_frac42: \n"
+                "DATA rcx \n"
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_plus_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+                
+                ;; calc denominator until: r13 = r9*r11
+                "mov rax, r9 \n"
+                "imul r11 \n"
+                "mov r13, rax \n"
+                ;; At his point r13 holds the value of the denominator
+                
+                
+                ;; calc nominator until: r14 = r8*r11
+                ;;                       rsi = r9*r10
+                "mov rax, r8 \n"
+                "imul r11 \n"
+                "mov r14, rax \n"
+                
+                "mov rax, r9 \n"
+                "imul r10 \n"
+                "mov rsi, rax \n"
+                
+                "add rsi, r14 \n"
+                ;; At his point rsi holds the value of the nominator
+                
+                "push r13 \n"
+                "push rsi \n"
+                "push r13 \n"
+                "push rsi \n"
+                "call gcd \n"
+                "add rsp, 8*2 \n"
+                "pop rsi \n"
+                "pop r13 \n"
+                ;; At his point rax holds the value of the gcd of the nominator (rsi) and the denominator (r13)
+                
+                "mov rdi, rax \n" ;;save the gcd value in rdi
+                "my_idiv r13, rdi \n"
+                "mov r13, rax \n"
+                
+                "my_idiv rsi, rdi \n"
+                "mov rsi, rax \n"
+                ;; At his point rsi holds the value of the reduced(!) nominator and r13 holds the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], rsi \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov rsi, rax \n"
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], r13 \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov r13, rax \n"
+                ;; At his point rsi holds the pointer to the value of the reduced(!) nominator and r13 holds the pointer to the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov r8, [r13] \n"
+                "DATA r8 \n"
+                "cmp r8, 1 \n"
+                "je .L_make_integer \n"
+                "mov r10, rax \n"
+                "MAKE_MALLOC_LITERAL_FRACTION r10, rsi, r13 \n"
+                "mov rax, r10 \n"
+                "jmp L_end_plus_bin \n"
+                
+                ".L_make_integer: \n"
+                "mov rax, rsi \n"
+                
+                "L_end_plus_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_plus_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_plus_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+                
+(define ass-minus-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '- global-var-table)))
+            (string-append 
+                "jmp L_make_minus_bin \n" 
+                "L_minus_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_make_frac \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp .L_next_arg \n "
+                
+                ".L_make_frac: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                ".L_next_arg: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je L_make_frac52 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_minus_bin \n "
+                
+                "L_make_frac52: \n"
+                "DATA rcx \n"
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_minus_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+                
+                ;; calc denominator until: r13 = r9*r11
+                "mov rax, r9 \n"
+                "imul r11 \n"
+                "mov r13, rax \n"
+                ;; At his point r13 holds the value of the denominator
+                
+                
+                ;; calc nominator until: rsi = r8*r11
+                ;;                       r14 = r9*r10
+                "mov rax, r8 \n"
+                "imul r11 \n"
+                "mov rsi, rax \n"
+                
+                "mov rax, r9 \n"
+                "imul r10 \n"
+                "mov r14, rax \n"
+                
+                "blaaa: \n"
+                "sub rsi, r14 \n"
+                ;; At his point rsi holds the value of the nominator
+                
+                "push r13 \n"
+                "push rsi \n"
+                "push r13 \n"
+                "push rsi \n"
+                "call gcd \n"
+                "add rsp, 8*2 \n"
+                "pop rsi \n"
+                "pop r13 \n"
+                ;; At his point rax holds the value of the gcd of the nominator (rsi) and the denominator (r13)
+                
+                "mov rdi, rax \n" ;;save the gcd value in rdi
+                "my_idiv r13, rdi \n"
+                "mov r13, rax \n"
+                
+                "my_idiv rsi, rdi \n"
+                "mov rsi, rax \n"
+                ;; At his point rsi holds the value of the reduced(!) nominator and r13 holds the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], rsi \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov rsi, rax \n"
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], r13 \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov r13, rax \n"
+                ;; At his point rsi holds the pointer to the value of the reduced(!) nominator and r13 holds the pointer to the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov r8, [r13] \n"
+                "DATA r8 \n"
+                "cmp r8, 1 \n"
+                "je .L_make_integer \n"
+                "mov r10, rax \n"
+                "MAKE_MALLOC_LITERAL_FRACTION r10, rsi, r13 \n"
+                "mov rax, r10 \n"
+                "jmp L_end_minus_bin \n"
+                
+                ".L_make_integer: \n"
+                "mov rax, rsi \n"
+                
+                "L_end_minus_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_minus_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_minus_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+                
+(define ass-mul-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '* global-var-table)))
+            (string-append 
+                "jmp L_make_mul_bin \n" 
+                "L_mul_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_make_frac \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp .L_next_arg \n "
+                
+                ".L_make_frac: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                ".L_next_arg: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_make_frac2 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_mul_bin \n "
+                
+                ".L_make_frac2: \n"
+                "DATA rcx \n"
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_mul_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+                
+                ;; calc denominator until: r13 = r9*r11
+                "mov rax, r9 \n"
+                "imul r11 \n"
+                "mov r13, rax \n"
+                ;; At his point r13 holds the value of the denominator
+                
+                
+                ;; calc nominator until: rsi = r8*r10
+                ;;                       r13 = r9*r11
+                "mov rax, r8 \n"
+                "imul r10 \n"
+                "mov rsi, rax \n"
+                ;; At his point rsi holds the value of the nominator
+                
+                "push r13 \n"
+                "push rsi \n"
+                "push r13 \n"
+                "push rsi \n"
+                "call gcd \n"
+                "add rsp, 8*2 \n"
+                "pop rsi \n"
+                "pop r13 \n"
+                ;; At his point rax holds the value of the gcd of the nominator (rsi) and the denominator (r13)
+                
+                "mov rdi, rax \n" ;;save the gcd value in rdi
+                "my_idiv r13, rdi \n"
+                "mov r13, rax \n"
+                
+                "my_idiv rsi, rdi \n"
+                "mov rsi, rax \n"
+                ;; At his point rsi holds the value of the reduced(!) nominator and r13 holds the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], rsi \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov rsi, rax \n"
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov qword [rax], r13 \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                "mov r13, rax \n"
+                ;; At his point rsi holds the pointer to the value of the reduced(!) nominator and r13 holds the pointer to the value of the reduced(!) denomiantor
+                
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+                "mov r8, [r13] \n"
+                "DATA r8 \n"
+                "cmp r8, 1 \n"
+                "je .L_make_integer \n"
+                "mov r10, rax \n"
+                "MAKE_MALLOC_LITERAL_FRACTION r10, rsi, r13 \n"
+                "mov rax, r10 \n"
+                "jmp L_end_mul_bin \n"
+                
+                ".L_make_integer: \n"
+                "mov rax, rsi \n"
+                
+                "L_end_mul_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_mul_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_mul_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+(define ass-div-bin
+    (lambda ()      
+        (let* 
+            ((address (find-address '/ global-var-table)))
+            (string-append 
+                "jmp L_make_div_bin \n" 
+                "L_div_bin: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 2 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rax, [rbp + 8*4] \n"
+                "mov rax, [rax] \n"
+                "mov rbx, rax \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_make_frac \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rax \n"
+                "CAR rax \n"
+                "DATA rax \n"
+                "mov r8, rax \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r9, rbx \n"
+                "jmp .L_next_arg \n "
+                
+                ".L_make_frac: \n"
+                "DATA rax \n"
+                "int_to_frac rax, r8, r9 \n"
+                
+                ".L_next_arg: \n"
+                
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                "mov rcx, [rbp + 8*5] \n"
+                "mov rcx, [rcx] \n"
+                "mov rbx, rcx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_make_frac2 \n "
+                
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "mov rbx, rcx \n"
+                "CAR rcx \n"
+                "DATA rcx \n"
+                "mov r10, rcx \n"
+                "CDR rbx \n"
+                "DATA rbx \n"
+                "mov r11, rbx \n"
+                "jmp L_start_div_bin \n "
+                
+                ".L_make_frac2: \n"
+                "DATA rcx \n"
+                "cmp rcx, 0 \n"
+                "je L_deivision_by_0_error \n "
+                "int_to_frac rcx, r10, r11 \n"
+               
+                "L_start_div_bin: \n"
+                ";At this point the first argument is stored as fraction in r8, r9 \n"
+                ";At this point the second argument is stored as fraction in r10, r11 \n"
+
+                "xchg r10, r11 \n"
+                ;; calc denominator until: r13 = r9*r11
+                "mov rax, r9 \n"
+                "imul r11 \n"
+                "mov r13, rax \n"
+                ;; At his point r13 holds the value of the denominator
+                
+                
+                ;; calc nominator until: rsi = r8*r10
+                ;;                       r13 = r9*r11
+                "mov rax, r8 \n"
+                "imul r10 \n"
+                "mov rsi, rax \n"
+                ;; At his point rsi holds the value of the nominator
+                
+                "push r13 \n"
+                "push rsi \n"
+                "push r13 \n"
+                "push rsi \n"
+                "call gcd \n"
+                "add rsp, 8*2 \n"
+                "pop rsi \n"
+                "pop r13 \n"
+                ;; At his point rax holds the value of the gcd of the nominator (rsi) and the denominator (r13)
+                
+                "mov rdi, rax \n" ;;save the gcd value in rdi
+                "my_idiv r13, rdi \n"
+                "mov r13, rax \n"
+                
+                "my_idiv rsi, rdi \n"
+                "mov rsi, rax \n"
+                
+                "cmp r13, 0 \n"
+                "jge .L_cont \n"
+                "neg r13 \n"
+                "neg rsi \n"
+                
+                ".L_cont: \n"
+               
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 8 \n"
+
+                "cmp r13, 1 \n"
+                "je .L_make_integer \n"
+                "mov r10, rax \n"
+                "MAKE_MALLOC_LITERAL_FRACTION r10, rsi, r13 \n"
+                "mov rax, r10 \n"
+                "jmp L_end_div_bin \n"
+                
+                ".L_make_integer: \n"
+                "mov qword [rax], rsi \n"
+                "shl qword [rax], 4 \n"
+                "or qword [rax], T_INTEGER \n"
+                
+                "L_end_div_bin: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_div_bin: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_div_bin \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" ))))
+                
+                
+(define ass-numerator
+    (lambda ()      
+        (let* 
+            ((address (find-address 'numerator global-var-table)))
+            (string-append 
+                "jmp L_make_numerator \n" 
+                "L_numerator: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 1 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rbx, [rbp + 8*4] \n"
+                "mov rbx, [rbx] \n"
+                "mov rax, rbx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_cont \n "
+
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "MY_CAR rax \n"
+                "jmp .L_done \n"
+                
+                ".L_cont: \n"
+                "mov rax, [rbp + 8*4] \n"
+                
+                ".L_done: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_numerator: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_numerator \n"
+                "mov rax, [rax] \n"
+                "mov [L_glob" (number->string address) "], rax \n\n" )))) 
+
+(define ass-denominator
+    (lambda ()      
+        (let* 
+            ((address (find-address 'denominator global-var-table)))
+            (string-append 
+                "jmp L_make_denominator \n" 
+                "L_denominator: \n"
+                "push rbp \n"
+                "mov rbp, rsp \n"
+                "mov rbx, [rbp + 8*3] \n"
+                "cmp rbx , 1 \n"
+                "jne L_incorrect_num_of_args \n"
+                "mov rbx, [rbp + 8*4] \n"
+                "mov rbx, [rbx] \n"
+                "mov rax, rbx \n"
+                "TYPE rbx \n"
+                "cmp rbx, T_INTEGER \n"
+                "je .L_cont \n "
+
+                "cmp rbx, T_FRACTION \n"
+                "jne L_incorrect_type \n "
+                "MY_CDR rax \n"
+                "jmp .L_done \n"
+                
+                ".L_cont: \n"
+                "MAKE_MALLOC_LITERAL_INTEGER 1 \n"
+                
+                ".L_done: \n"
+                "leave \n"
+                "ret \n"
+                
+                "L_make_denominator: \n"
+                "mov rax, [malloc_pointer] \n"
+                "my_malloc 16 \n"
+                "MAKE_LITERAL_CLOSURE rax, L_const2, L_denominator \n"
                 "mov rax, [rax] \n"
                 "mov [L_glob" (number->string address) "], rax \n\n" ))))
