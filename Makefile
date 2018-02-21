@@ -1,22 +1,15 @@
 
-all: run
-
-run: 1.o
-	#ld -g -m64 scheme.o -o schemetest
-# 	gcc -m64 scheme.o -o schemetest
-	gcc -m64 1.o -o run
-
-# scheme.o: scheme.s
-# 	nasm -g -w+all  -f elf64  scheme.s -o scheme.o
+%:
+	echo '(load "compiler.scm")' '(compile-scheme-file "$(MAKECMDGOALS).scm" "1.s")' | scheme -q
+# 	cat $(MAKECMDGOALS).scm > $(MAKECMDGOALS).tmp.scm
+# 	cat scheme.s > $(MAKECMDGOALS) scm
+# 	cat $(MAKECMDGOALS).tmp.scm >> $(MAKECMDGOALS).scm
+# 	rm -f $(MAKECMDGOALS).tmp.scm
+	nasm -g -f elf64 -w+all -o 1.o 1.s
+	gcc -m64 -g -Wall -o run 1.o
 	
-1.o: 1.s
-	nasm -g -w+all  -f elf64  1.s -o 1.o
 	
 .PHONY:
 	clean
-
 clean:
-# 	rm ./*.o schemetest
-	rm ./*.o run
-
-
+	rm -f ./run
